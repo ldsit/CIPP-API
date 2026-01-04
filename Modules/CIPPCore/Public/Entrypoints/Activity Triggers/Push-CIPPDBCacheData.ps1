@@ -11,7 +11,7 @@ function Push-CIPPDBCacheData {
     #>
     [CmdletBinding()]
     param($Item)
-
+    Write-Host "Starting cache collection for tenant: $($Item.TenantFilter) - Queue: $($Item.QueueName) (ID: $($Item.QueueId))"
     $TenantFilter = $Item.TenantFilter
     #This collects all data for a tenant and caches it in the CIPP Reporting database. DO NOT ADD PROCESSING OR LOGIC HERE.
     #The point of this file is to always be <10 minutes execution time.
@@ -209,6 +209,16 @@ function Push-CIPPDBCacheData {
         Write-Host 'Getting cache for ExoAcceptedDomains'
         try { Set-CIPPDBCacheExoAcceptedDomains -TenantFilter $TenantFilter } catch {
             Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message "ExoAcceptedDomains collection failed: $($_.Exception.Message)" -sev Error
+        }
+
+        Write-Host 'Getting cache for License Overview'
+        try { Set-CIPPDBCacheLicenseOverview -TenantFilter $TenantFilter } catch {
+            Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message "License Overview collection failed: $($_.Exception.Message)" -sev Error
+        }
+
+        Write-Host 'Getting cache for MFA State'
+        try { Set-CIPPDBCacheMFAState -TenantFilter $TenantFilter } catch {
+            Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message "MFA State collection failed: $($_.Exception.Message)" -sev Error
         }
         #endregion All Licenses
 

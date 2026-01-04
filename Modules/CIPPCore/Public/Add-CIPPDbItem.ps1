@@ -43,6 +43,7 @@ function Add-CIPPDbItem {
     try {
         $Table = Get-CippTable -tablename 'CippReportingDB'
 
+
         if ($Count) {
             $Entity = @{
                 PartitionKey = $TenantFilter
@@ -53,8 +54,14 @@ function Add-CIPPDbItem {
             Add-CIPPAzDataTableEntity @Table -Entity $Entity -Force | Out-Null
 
         } else {
+            #Get the existing type entries and nuke them. This ensures we don't have stale data.
+            $Filter = "PartitionKey eq '{0}' and RowKey ge '{1}-' and RowKey lt '{1}0'" -f $TenantFilter, $Type
+            $ExistingEntities = Get-CIPPAzDataTableEntity @Table -Filter $Filter
+            if ($ExistingEntities) {
+                Remove-AzDataTableEntity @Table -Entity $ExistingEntities -Force | Out-Null
+            }
             $Entities = foreach ($Item in $Data) {
-                $ItemId = $Item.id
+                $ItemId = $Item.id ? $Item.id : $item.skuId
                 @{
                     PartitionKey = $TenantFilter
                     RowKey       = "$Type-$ItemId"
