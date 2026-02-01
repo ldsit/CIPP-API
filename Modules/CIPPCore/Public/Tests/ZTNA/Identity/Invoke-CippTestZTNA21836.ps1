@@ -1,4 +1,8 @@
 function Invoke-CippTestZTNA21836 {
+    <#
+    .SYNOPSIS
+    Workload Identities are not assigned privileged roles
+    #>
     param($Tenant)
     #Untested
     $TestId = 'ZTNA21836'
@@ -8,7 +12,7 @@ function Invoke-CippTestZTNA21836 {
         $PrivilegedRoles = Get-CippDbRole -TenantFilter $Tenant -IncludePrivilegedRoles
 
         if (-not $PrivilegedRoles) {
-            Add-CippTestResult -TenantFilter $Tenant -TestId $TestId -TestType 'Identity' -Status 'Investigate' -ResultMarkdown 'No privileged roles found in database' -Risk 'High' -Name 'Workload Identities are not assigned privileged roles' -UserImpact 'Low' -ImplementationEffort 'Medium' -Category 'Application management'
+            Add-CippTestResult -TenantFilter $Tenant -TestId $TestId -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'No data found in database. This may be due to missing required licenses or data collection not yet completed.' -Risk 'High' -Name 'Workload Identities are not assigned privileged roles' -UserImpact 'Low' -ImplementationEffort 'Medium' -Category 'Application management'
             return
         }
 
@@ -16,7 +20,7 @@ function Invoke-CippTestZTNA21836 {
         $WorkloadIdentitiesWithPrivilegedRoles = [System.Collections.Generic.List[object]]::new()
 
         foreach ($Role in $PrivilegedRoles) {
-            $RoleMembers = Get-CippDbRoleMembers -TenantFilter $Tenant -RoleId $Role.id
+            $RoleMembers = Get-CippDbRoleMembers -TenantFilter $Tenant -RoleTemplateId $Role.id
 
             foreach ($Member in $RoleMembers) {
                 if ($Member.'@odata.type' -eq '#microsoft.graph.servicePrincipal') {
