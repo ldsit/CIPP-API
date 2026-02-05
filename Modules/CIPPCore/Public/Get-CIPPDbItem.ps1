@@ -23,7 +23,7 @@ function Get-CIPPDbItem {
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [string]$TenantFilter,
 
         [Parameter(Mandatory = $false)]
@@ -37,14 +37,29 @@ function Get-CIPPDbItem {
         $Table = Get-CippTable -tablename 'CippReportingDB'
 
         if ($CountsOnly) {
-            $Filter = "PartitionKey eq '{0}'" -f $TenantFilter
-            $Results = Get-CIPPAzDataTableEntity @Table -Filter $Filter
-            $Results = $Results | Where-Object { $_.RowKey -like '*-Count' }
+            $Conditions = [System.Collections.Generic.List[string]]::new()
+            if ($TenantFilter -ne 'allTenants') {
+                $Conditions.Add("PartitionKey eq '{0}'" -f $TenantFilter)
+            }
+            if ($Type) {
+                # Exact match for count row when type is specified
+                $Conditions.Add("RowKey eq '{0}-Count'" -f $Type)
+            } else {
+                # Filter by DataCount property to get only count rows (server-side filtering)
+                $Conditions.Add('DataCount ge 0')
+            }
+            $Filter = [string]::Join(' and ', $Conditions)
+            $Results = Get-CIPPAzDataTableEntity @Table -Filter $Filter -Property 'PartitionKey', 'RowKey', 'DataCount', 'Timestamp'
+            $Results = $Results | Select-Object PartitionKey, RowKey, DataCount, Timestamp
         } else {
             if (-not $Type) {
                 throw 'Type parameter is required when CountsOnly is not specified'
             }
-            $Filter = "PartitionKey eq '{0}' and RowKey ge '{1}-' and RowKey lt '{1}.'" -f $TenantFilter, $Type
+            if ($TenantFilter -ne 'allTenants') {
+                $Filter = "PartitionKey eq '{0}' and RowKey ge '{1}-' and RowKey lt '{1}.'" -f $TenantFilter, $Type
+            } else {
+                $Filter = "RowKey ge '{0}-' and RowKey lt '{0}.'" -f $Type
+            }
             $Results = Get-CIPPAzDataTableEntity @Table -Filter $Filter
         }
 
@@ -55,3 +70,4 @@ function Get-CIPPDbItem {
         throw
     }
 }
+
