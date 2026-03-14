@@ -5,22 +5,26 @@ function Set-CIPPDBCacheManagedDeviceEncryptionStates {
 
     .PARAMETER TenantFilter
         The tenant to cache managed device encryption states for
+
+    .PARAMETER QueueId
+        The queue ID to update with total tasks (optional)
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [string]$TenantFilter
+        [string]$TenantFilter,
+        [string]$QueueId
     )
 
     try {
-        Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Caching managed device encryption states' -sev Info
+        Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Caching managed device encryption states' -sev Debug
 
         $ManagedDeviceEncryptionStates = New-GraphGetRequest -uri 'https://graph.microsoft.com/beta/deviceManagement/managedDeviceEncryptionStates?$top=999' -tenantid $TenantFilter
 
         if ($ManagedDeviceEncryptionStates) {
             Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'ManagedDeviceEncryptionStates' -Data $ManagedDeviceEncryptionStates
             Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'ManagedDeviceEncryptionStates' -Data $ManagedDeviceEncryptionStates -Count
-            Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message "Cached $($ManagedDeviceEncryptionStates.Count) managed device encryption states" -sev Info
+            Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message "Cached $($ManagedDeviceEncryptionStates.Count) managed device encryption states" -sev Debug
         }
         $ManagedDeviceEncryptionStates = $null
 
