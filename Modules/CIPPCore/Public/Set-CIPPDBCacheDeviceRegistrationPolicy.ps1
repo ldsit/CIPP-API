@@ -5,21 +5,25 @@ function Set-CIPPDBCacheDeviceRegistrationPolicy {
 
     .PARAMETER TenantFilter
         The tenant to cache device registration policy for
+
+    .PARAMETER QueueId
+        The queue ID to update with total tasks (optional)
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [string]$TenantFilter
+        [string]$TenantFilter,
+        [string]$QueueId
     )
 
     try {
-        Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Caching device registration policy' -sev Info
+        Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Caching device registration policy' -sev Debug
 
         $DeviceRegistrationPolicy = New-GraphGetRequest -uri 'https://graph.microsoft.com/beta/policies/deviceRegistrationPolicy' -tenantid $TenantFilter
 
         if ($DeviceRegistrationPolicy) {
             Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'DeviceRegistrationPolicy' -Data @($DeviceRegistrationPolicy)
-            Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Cached device registration policy successfully' -sev Info
+            Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Cached device registration policy successfully' -sev Debug
         }
 
     } catch {

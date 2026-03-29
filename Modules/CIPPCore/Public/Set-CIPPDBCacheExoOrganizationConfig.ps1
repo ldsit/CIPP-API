@@ -5,15 +5,19 @@ function Set-CIPPDBCacheExoOrganizationConfig {
 
     .PARAMETER TenantFilter
         The tenant to cache organization configuration for
+
+    .PARAMETER QueueId
+        The queue ID to update with total tasks (optional)
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [string]$TenantFilter
+        [string]$TenantFilter,
+        [string]$QueueId
     )
 
     try {
-        Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Caching Exchange Organization configuration' -sev Info
+        Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Caching Exchange Organization configuration' -sev Debug
 
         $OrgConfig = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-OrganizationConfig'
 
@@ -22,7 +26,7 @@ function Set-CIPPDBCacheExoOrganizationConfig {
             $OrgConfigArray = @($OrgConfig)
             Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'ExoOrganizationConfig' -Data $OrgConfigArray
             Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'ExoOrganizationConfig' -Data $OrgConfigArray -Count
-            Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Cached Exchange Organization configuration' -sev Info
+            Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Cached Exchange Organization configuration' -sev Debug
         }
         $OrgConfig = $null
 

@@ -5,20 +5,24 @@ function Set-CIPPDBCacheAuthenticationMethodsPolicy {
 
     .PARAMETER TenantFilter
         The tenant to cache authentication methods policy for
+
+    .PARAMETER QueueId
+        The queue ID to update with total tasks (optional)
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [string]$TenantFilter
+        [string]$TenantFilter,
+        [string]$QueueId
     )
 
     try {
-        Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Caching authentication methods policy' -sev Info
+        Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Caching authentication methods policy' -sev Debug
         $AuthMethodsPolicy = New-GraphGetRequest -uri 'https://graph.microsoft.com/beta/policies/authenticationMethodsPolicy' -tenantid $TenantFilter
         Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'AuthenticationMethodsPolicy' -Data @($AuthMethodsPolicy)
         $AuthMethodsPolicy = $null
 
-        Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Cached authentication methods policy successfully' -sev Info
+        Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Cached authentication methods policy successfully' -sev Debug
 
     } catch {
         Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message "Failed to cache authentication methods policy: $($_.Exception.Message)" -sev Error
