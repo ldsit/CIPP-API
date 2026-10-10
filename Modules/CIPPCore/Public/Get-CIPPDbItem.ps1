@@ -23,29 +23,77 @@ function Get-CIPPDbItem {
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [string]$TenantFilter,
 
         [Parameter(Mandatory = $false)]
         [string]$Type,
 
         [Parameter(Mandatory = $false)]
-        [switch]$CountsOnly
+        [switch]$CountsOnly,
+
+        # With -CountsOnly: also return each collection's recorded Shape (fields and types).
+        [Parameter(Mandatory = $false)]
+        [switch]$IncludeShape,
+
+        # Return the data rows grouped by tenant (ordered: domain -> rows), managed tenants only.
+        [Parameter(Mandatory = $false)]
+        [switch]$ByTenant
     )
 
     try {
+        # Enforce tenant lock when running inside custom script execution
+        if ($script:CIPPLockedTenant) {
+            $TenantFilter = $script:CIPPLockedTenant
+        }
+
         $Table = Get-CippTable -tablename 'CippReportingDB'
 
+        # $null = whole table; a scoped caller asking for allTenants reads only the tenants it may see
+        $Partitions = $null
+        $Managed = $null
+        if ($TenantFilter -ne 'allTenants') {
+            $Tenant = Get-Tenants -TenantFilter $TenantFilter
+            if (-not $Tenant) {
+                throw "Tenant '$TenantFilter' not found"
+            }
+            $TenantFilter = $Tenant.defaultDomainName
+            $Partitions = @($TenantFilter)
+        } elseif ($script:CippAllowedTenantsStorage -and $null -ne $script:CippAllowedTenantsStorage.Value) {
+            $Partitions = @((Get-Tenants -IncludeErrors).defaultDomainName | Where-Object { $_ })
+        } elseif ($ByTenant) {
+            # A whole-table read also returns rows of tenants no longer managed
+            $Managed = [System.Collections.Generic.HashSet[string]]::new([string[]]@((Get-Tenants -IncludeErrors).defaultDomainName), [StringComparer]::OrdinalIgnoreCase)
+        }
+
+        $Query = @{}
         if ($CountsOnly) {
-            $Filter = "PartitionKey eq '{0}'" -f $TenantFilter
-            $Results = Get-CIPPAzDataTableEntity @Table -Filter $Filter
-            $Results = $Results | Where-Object { $_.RowKey -like '*-Count' }
+            # Exact match for the count row when a type is given, otherwise every count row
+            $RowFilter = if ($Type) { "RowKey eq '{0}-Count'" -f $Type } else { 'DataCount ge 0' }
+            $Query.Property = @('PartitionKey', 'RowKey', 'DataCount', 'Timestamp'; if ($IncludeShape) { 'Shape' })
         } else {
             if (-not $Type) {
                 throw 'Type parameter is required when CountsOnly is not specified'
             }
-            $Filter = "PartitionKey eq '{0}' and RowKey ge '{1}-' and RowKey lt '{1}.'" -f $TenantFilter, $Type
-            $Results = Get-CIPPAzDataTableEntity @Table -Filter $Filter
+            $RowFilter = "RowKey ge '{0}-' and RowKey lt '{0}.'" -f $Type
+        }
+
+        $Results = if ($null -eq $Partitions) {
+            Get-CIPPAzDataTableEntity @Table @Query -Filter $RowFilter
+        } else {
+            foreach ($Partition in $Partitions) {
+                Get-CIPPAzDataTableEntity @Table @Query -Filter ("PartitionKey eq '{0}' and {1}" -f $Partition, $RowFilter)
+            }
+        }
+
+        if ($ByTenant) {
+            $Grouped = [ordered]@{}
+            foreach ($Row in $Results) {
+                if ($Row.RowKey -eq "$Type-Count" -or ($Managed -and -not $Managed.Contains([string]$Row.PartitionKey))) { continue }
+                if (-not $Grouped.Contains($Row.PartitionKey)) { $Grouped[$Row.PartitionKey] = [System.Collections.Generic.List[object]]::new() }
+                $Grouped[$Row.PartitionKey].Add($Row)
+            }
+            return $Grouped
         }
 
         return $Results
@@ -55,3 +103,4 @@ function Get-CIPPDbItem {
         throw
     }
 }
+
